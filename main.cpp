@@ -103,24 +103,38 @@ void handle_add_album(Album** head) {
     int year; 
     Format format;
     int song_quantity;
-    double duration_total_seconds;
+    int duration_total_seconds;
     std::string artist;
 
     std::cout 
         << "\n====================================================\n"
         << "                    ADD AN ALBUM\n"
         << "====================================================\n"
-        << "Enter name of album: ";
+        << "Enter album name (maximum 100 characters): ";
     std::getline(std::cin >> std::ws, name);
 
+    while (name.empty() || name.length() > 100) {
+        if (name.empty()) {
+            std::cout << "Name cannot be empty. Enter album name: ";
+        } else {
+            std::cout
+                << "Name is too long. Enter a name containing up to 100 characters: ";
+        }
+
+        std::getline(std::cin, name);
+    }
+    
+
+    const int current_year = get_year();
+
     std::cout << "Enter year: ";
-      while (!(std::cin >> year) || year < 1909 || year > get_year()) {
+      while (!(std::cin >> year) || year < 1909 || year > current_year) {
         std::cin.clear();
         std::cin.ignore(
             std::numeric_limits<std::streamsize>::max(), '\n');
 
         std::cout << "Invalid year. Please enter year from 1909 to " 
-                    << get_year() << ": ";
+                    << current_year << ": ";
     }
 
     std::cout 
@@ -176,8 +190,19 @@ void handle_add_album(Album** head) {
 
     duration_total_seconds = duration_minutes * 60 + duration_seconds;
     
-    std::cout << "Enter artist name: ";
+    std::cout << "Enter artist name (maximum 100 characters): ";
     std::getline(std::cin >> std::ws, artist);
+
+    while (artist.empty() || artist.length() > 100) {
+        if (artist.empty()) {
+            std::cout << "Name cannot be empty. Enter album name: ";
+        } else {
+            std::cout
+                << "Name is too long. Enter a name containing up to 100 characters: ";
+        }
+
+        std::getline(std::cin, artist);
+    }
 
     Album* album = create_album(
         name, 
@@ -199,6 +224,7 @@ void handle_add_album(Album** head) {
 
             std::cout << "\nInvalid option. Enter 'y' or 'n': ";
         }
+
     if (decision == 'y') {
         add_album(head, album);
         std::cout << "\nAlbum added successfully.\n";
@@ -229,15 +255,15 @@ void handle_print_albums(Album* head) {
             << '\n';
 
         std::cout << std::string(105, '-') << '\n';
-    }
-    
-    int no = 1;
-    Album* tmp = head;
-    while (tmp != nullptr) {
-        std::cout << std::setw(5)  << no;
-        print_album(tmp);
-        tmp = tmp->next;
-        ++no;
+        
+        int no = 1;
+        Album* tmp = head;
+        while (tmp != nullptr) {
+            std::cout << std::setw(5)  << no;
+            print_album(tmp);
+            tmp = tmp->next;
+            ++no;
+        }
     }
 
     int option;
@@ -249,6 +275,8 @@ void handle_print_albums(Album* head) {
 
         std::cout << "Invalid option. Please enter 0: ";
     }
+
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 
 Album* create_album(const std::string& name, 
@@ -284,7 +312,8 @@ void add_album(Album** head, Album* new_album) {
 }
 
 void print_album(Album* album) {
-    double duration = (album->data.duration_total_seconds / 60) + ((album->data.duration_total_seconds % 60) / 100.0);
+    double duration = (album->data.duration_total_seconds / 60) + 
+                      ((album->data.duration_total_seconds % 60) / 100.0);
     std::cout
         << std::left
         << std::setw(30) << album->data.name
