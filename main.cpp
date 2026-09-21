@@ -344,7 +344,33 @@ void print_album(Album* album) {
         << '\n';
 }
 
-void delete_album(Album* head);
+void delete_album(Album** head, int position) {
+    if (*head == nullptr) {
+        return;
+    }
+    Album* tmp = *head;
+    if (position == 1) {
+        *head = (*head)->next;
+        if (*head != NULL) {
+            (*head)->prev = NULL;
+        }
+        delete tmp;
+        return;
+    }
+    for (int i = 1; tmp != nullptr && i < position; i++) {
+        tmp = tmp->next;
+    }
+    if (tmp == nullptr) {
+        return;
+    }
+    if (tmp->next != nullptr) {
+        tmp->next->prev = tmp->prev;
+    }
+    if (tmp->prev != nullptr) {
+        tmp->prev->next = tmp->next;
+    }
+    delete tmp;
+}
 void delete_all_albums(Album* head);
 
 void change_album_string_part(Album** head, std::string data_type, std::string chenges);
