@@ -98,6 +98,10 @@ int get_year() {
     return 1900 + pTInfo->tm_year;
 }
 
+bool is_blank(const std::string& text) {
+    return text.find_first_not_of(" \t\r") == std::string::npos;
+}
+
 void handle_add_album(Album** head) {
     std::string name;
     int year; 
@@ -113,8 +117,8 @@ void handle_add_album(Album** head) {
         << "Enter album name (maximum 100 characters): ";
     std::getline(std::cin >> std::ws, name);
 
-    while (name.empty() || name.length() > 100) {
-        if (name.empty()) {
+    while (is_blank(name) || name.length() > 100) {
+        if (is_blank(name)) {
             std::cout << "Name cannot be empty. Enter album name: ";
         } else {
             std::cout
@@ -155,7 +159,7 @@ void handle_add_album(Album** head) {
             std::cout 
                 << "\nInvalid option. Please enter a number from 1 to 6: ";
         }
-    format = static_cast<Format>(tmp-1);
+    format = static_cast<Format>(tmp - 1);
 
     std::cout << "Enter song quantity: ";
     while (!(std::cin >> song_quantity) || song_quantity < 1) {
@@ -169,36 +173,51 @@ void handle_add_album(Album** head) {
 
     int duration_minutes;
     int duration_seconds;
+    do {
+        std::cout << "Enter duration minutes: ";
 
-    std::cout << "Enter duration minutes: ";
-    while (!(std::cin >> duration_minutes) || duration_minutes < 0) {
-        std::cin.clear();
-        std::cin.ignore(
-            std::numeric_limits<std::streamsize>::max(), '\n'
-        );
-        std::cout << "Invalid value. Enter non-negative minutes: ";
-    }
+        while (!(std::cin >> duration_minutes) ||
+            duration_minutes < 0) {
+            std::cin.clear();
+            std::cin.ignore(
+                std::numeric_limits<std::streamsize>::max(), '\n'
+            );
 
-    std::cout << "Enter duration seconds (0-59): ";
-    while (!(std::cin >> duration_seconds) || duration_seconds < 0 || duration_seconds > 59) {
-        std::cin.clear();
-        std::cin.ignore(
-            std::numeric_limits<std::streamsize>::max(), '\n'
-        );
-        std::cout << "Invalid value. Enter seconds from 0 to 59: ";
-    }
+            std::cout
+                << "Invalid value. Enter non-negative minutes: ";
+        }
 
-    duration_total_seconds = duration_minutes * 60 + duration_seconds;
-    
+        std::cout << "Enter duration seconds (0-59): ";
+
+        while (!(std::cin >> duration_seconds) ||
+            duration_seconds < 0 ||
+            duration_seconds > 59) {
+            std::cin.clear();
+            std::cin.ignore(
+                std::numeric_limits<std::streamsize>::max(), '\n'
+            );
+
+            std::cout << "Invalid value. Enter seconds from 0 to 59: ";
+        }
+
+        duration_total_seconds =
+            duration_minutes * 60 + duration_seconds;
+
+        if (duration_total_seconds == 0) {
+            std::cout
+                << "Album duration must be greater than 0:00.\n";
+        }
+    } while (duration_total_seconds == 0);
+
     std::cout << "Enter artist name (maximum 100 characters): ";
     std::getline(std::cin >> std::ws, artist);
 
-    while (artist.empty() || artist.length() > 100) {
-        if (artist.empty()) {
-            std::cout << "Name cannot be empty. Enter album name: ";
+    while (is_blank(artist) || artist.length() > 100) {
+        if (is_blank(artist)) {
+            std::cout << "Artist name cannot be empty. Enter artist name: ";
         } else {
             std::cout
-                << "Name is too long. Enter a name containing up to 100 characters: ";
+                << "Artist name is too long. Enter a name containing up to 100 characters: ";
         }
 
         std::getline(std::cin, artist);
