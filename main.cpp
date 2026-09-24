@@ -12,7 +12,6 @@ enum Format {
     DVDAudio,
     Other
 };
-
 typedef struct Data {
     std::string name;
     int year;
@@ -21,7 +20,6 @@ typedef struct Data {
     int duration_total_seconds;
     std::string artist;
 } Data;
-
 typedef struct Album {
     Album* prev;
     Data data;
@@ -29,10 +27,11 @@ typedef struct Album {
 } Album;
 
 int menu();
-void handle_add_album(Album** head);
-void handle_print_albums(Album* head);
-std::string format_to_string(Format format);
 
+void handle_add_album(Album** head);
+bool is_blank(const std::string& text);
+int get_year();
+std::string format_to_string(Format format);
 Album* create_album(const std::string& name, 
                     int year, 
                     Format format, 
@@ -40,8 +39,14 @@ Album* create_album(const std::string& name,
                     double duration_total_seconds, 
                     const std::string& artist);
 void add_album(Album** head, Album* new_album);
-void print_albums(Album* head);
+
+void handle_print_albums(Album* head);
 void print_album(Album* album);
+int print_albums(Album* head);
+
+void handle_clear_data(Album** head);
+void handle_delete_album(Album** head);
+void delete_album(Album** head, int position);
 
 int main() {
     Album* head = nullptr;
@@ -56,7 +61,7 @@ int main() {
             handle_add_album(&head);
             break;
         case 2:
-            /* code */
+            handle_delete_album(&head);
             break;
         case 3:
             /* code */
@@ -77,10 +82,7 @@ int main() {
             handle_print_albums(head);
             break;
         case 9:
-            /* code */
-            break;
-        case 10:
-            /* code */
+            handle_clear_data(&head);
             break;
         case 0:
             running = false;
@@ -91,15 +93,37 @@ int main() {
     return 0;
 }
 
-int get_year() {
-    std::time_t t = std::time(nullptr);
-    std::tm *const pTInfo = std::localtime(&t);
+int menu() {
+    int opt;
 
-    return 1900 + pTInfo->tm_year;
-}
+    std::cout
+        << "\n====================================================\n"
+        << "                MUSIC KALEIDOSCOPE\n"
+        << "====================================================\n"
+        << "         Music Album Collection Manager\n\n"
+        << "1. Add an album\n"
+        << "2. Delete an album\n"
+        << "3. Edit album information\n"
+        << "4. Search for albums by artist\n"
+        << "5. Display albums released after a specified year\n"
+        << "6. Find the longest album in a selected format\n"
+        << "7. Sort albums by duration\n"
+        << "8. Display all albums\n"
+        << "9. Clear data\n"
+        << "0. Exit\n\n"
+        << "Select an option (0 - 10): ";
 
-bool is_blank(const std::string& text) {
-    return text.find_first_not_of(" \t\r") == std::string::npos;
+        while (!(std::cin >> opt) || opt < 0 || opt > 10) {
+            std::cin.clear();
+            std::cin.ignore(
+                std::numeric_limits<std::streamsize>::max(), '\n'
+            );
+
+            std::cout 
+                << "\nInvalid option. Please enter a number from 0 to 10: ";
+        }
+        
+    return opt;
 }
 
 void handle_add_album(Album** head) {
@@ -253,49 +277,26 @@ void handle_add_album(Album** head) {
     }
 }
 
-void handle_print_albums(Album* head) {
-    std::cout 
-        << "\n====================================================\n"
-        << "                    LIST OF ALBUMS\n"
-        << "====================================================\n\n";
+bool is_blank(const std::string& text) {
+    return text.find_first_not_of(" \t\r") == std::string::npos;
+}
 
-    if (head == nullptr) {
-        std::cout << "The album list is empty.\n";
-    } else {
-        std::cout
-            << std::left
-            << std::setw(5)  << "No."
-            << std::setw(30) << "Album"
-            << std::setw(8)  << "Year"
-            << std::setw(15) << "Format"
-            << std::setw(10) << "Songs"
-            << std::setw(12) << "Duration"
-            << std::setw(25) << "Artist"
-            << '\n';
+int get_year() {
+    std::time_t t = std::time(nullptr);
+    std::tm *const pTInfo = std::localtime(&t);
 
-        std::cout << std::string(105, '-') << '\n';
-        
-        int no = 1;
-        Album* tmp = head;
-        while (tmp != nullptr) {
-            std::cout << std::setw(5)  << no;
-            print_album(tmp);
-            tmp = tmp->next;
-            ++no;
-        }
+    return 1900 + pTInfo->tm_year;
+}
+
+std::string format_to_string(Format format) {
+    switch (format) {
+        case CD:       return "CD";
+        case Vinyl:    return "Vinyl";
+        case Cassette: return "Cassette";
+        case Digital:  return "Digital";
+        case DVDAudio: return "DVD-Audio";
+        case Other:    return "Other";
     }
-
-    int option;
-    std::cout << "\nEnter 0 to go back: ";
-    while (!(std::cin >> option) || option != 0) {
-        std::cin.clear();
-        std::cin.ignore(
-            std::numeric_limits<std::streamsize>::max(), '\n');
-
-        std::cout << "Invalid option. Please enter 0: ";
-    }
-
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 
 Album* create_album(const std::string& name, 
@@ -318,7 +319,7 @@ Album* create_album(const std::string& name,
     
     return newAlbum;
 }
-    
+
 void add_album(Album** head, Album* new_album) {
     if (*head == nullptr) {
         *head = new_album;
@@ -328,6 +329,22 @@ void add_album(Album** head, Album* new_album) {
     new_album->next = *head;
     (*head)->prev = new_album;
     *head = new_album;
+}
+
+void handle_print_albums(Album* head) {
+    print_albums(head);
+
+    int option;
+    std::cout << "\nEnter 0 to go back: ";
+    while (!(std::cin >> option) || option != 0) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout << "Invalid option. Please enter 0: ";
+    }
+
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 
 void print_album(Album* album) {
@@ -342,6 +359,97 @@ void print_album(Album* album) {
         << std::setw(12) << std::fixed << std::setprecision(2) << duration
         << std::setw(25) << album->data.artist
         << '\n';
+}
+
+int print_albums(Album* head) {
+    int no = 1;
+
+    std::cout 
+        << "\n====================================================\n"
+        << "                    LIST OF ALBUMS\n"
+        << "====================================================\n\n";
+
+    if (head == nullptr) {
+        std::cout << "The album list is empty.\n";
+        return 0;
+    } else {
+        std::cout
+                << std::left
+                << std::setw(5)  << "No."
+                << std::setw(30) << "Album"
+                << std::setw(8)  << "Year"
+                << std::setw(15) << "Format"
+                << std::setw(10) << "Songs"
+                << std::setw(12) << "Duration"
+                << std::setw(25) << "Artist"
+                << '\n';
+
+            std::cout << std::string(105, '-') << '\n';
+            
+            
+            Album* tmp = head;
+            while (tmp != nullptr) {
+                std::cout << std::setw(5)  << no;
+                print_album(tmp);
+                tmp = tmp->next;
+                ++no;
+            }
+    }
+    return no - 1;
+}
+
+void handle_delete_album(Album** head) {
+    int count = print_albums(*head);
+
+    if (count == 0) {
+        int option;
+        std::cout << "\nEnter 0 to go back: ";
+        while (!(std::cin >> option) || option != 0) {
+            std::cin.clear();
+            std::cin.ignore(
+                std::numeric_limits<std::streamsize>::max(), '\n');
+
+            std::cout << "Invalid option. Please enter 0: ";
+        }
+    } else {
+        int position;
+        std::cout << "\nEnter the album position to delete, or 0 to go back: ";
+        while (!(std::cin >> position) || position < 0 || position > count) {
+            std::cin.clear();
+            std::cin.ignore(
+                std::numeric_limits<std::streamsize>::max(), '\n');
+
+            std::cout << "Invalid option. Please enter a number between 0 and " << count  << ": ";
+        }
+        if (position == 0) {
+            return;
+        }
+        char decision;
+    
+        std::cout << "\nAre you sure? This action cannot be undone (y/n): ";
+        while (!(std::cin >> decision) || (decision != 'y' && decision != 'n')) {
+                std::cin.clear();
+                std::cin.ignore(
+                    std::numeric_limits<std::streamsize>::max(), '\n');
+
+                std::cout << "\nInvalid option. Enter 'y' or 'n': ";
+            }
+        if (decision == 'y') {
+            delete_album(head, position);
+    
+            std::cout << "\nAlbum deleted successfully.\n";
+        }
+        int option;
+        std::cout << "\nEnter 0 to go back: ";
+        while (!(std::cin >> option) || option != 0) {
+            std::cin.clear();
+            std::cin.ignore(
+                std::numeric_limits<std::streamsize>::max(), '\n');
+
+            std::cout << "Invalid option. Please enter 0: ";
+        }
+    } 
+    
 }
 
 void delete_album(Album** head, int position) {
@@ -371,68 +479,33 @@ void delete_album(Album** head, int position) {
     }
     delete tmp;
 }
-void delete_all_albums(Album* head);
 
-void change_album_string_part(Album** head, std::string data_type, std::string chenges);
-void change_album_int_part(Album** head, std::string data_type, int chenges);
-
-std::string format_to_string(Format format) {
-    switch (format) {
-        case CD:       return "CD";
-        case Vinyl:    return "Vinyl";
-        case Cassette: return "Cassette";
-        case Digital:  return "Digital";
-        case DVDAudio: return "DVD-Audio";
-        case Other:    return "Other";
-    }
-}
-
-
-void print_albums(Album* head) {
-    if (head == nullptr) {
-        return;
-    }
-
-    Album* tmp = head;
-
-    std::cout << "|\tназва диска\t|\tрік випуску\t|\tформат\t|\tкількість пісень\t|\tтривалість звучання\t|\tвиконавець\t|\n";
-    do {
-        print_album(tmp);
-        tmp = tmp->next;
-    } while (tmp != nullptr);
-}
-void print_albums_by_author(Album* head, const std::string& author);
-
-int menu() {
-    int opt;
-
-    std::cout
-        << "\n====================================================\n"
-        << "                MUSIC KALEIDOSCOPE\n"
-        << "====================================================\n"
-        << "         Music Album Collection Manager\n\n"
-        << "1. Add an album\n"
-        << "2. Delete an album\n"
-        << "3. Edit album information\n"
-        << "4. Search for albums by artist\n"
-        << "5. Display albums released after a specified year\n"
-        << "6. Find the longest album in a selected format\n"
-        << "7. Sort albums by duration\n"
-        << "8. Display all albums\n"
-        << "9. Load data from a file\n"
-        << "10. Save data to a file\n"
-        << "0. Exit\n\n"
-        << "Select an option (0 - 10): ";
-
-        while (!(std::cin >> opt) || opt < 0 || opt > 10) {
+void handle_clear_data(Album** head) {
+    char decision;
+    
+    std::cout << "Are you sure? This action cannot be undone (y/n): ";
+    while (!(std::cin >> decision) || (decision != 'y' && decision != 'n')) {
             std::cin.clear();
             std::cin.ignore(
-                std::numeric_limits<std::streamsize>::max(), '\n'
-            );
+                std::numeric_limits<std::streamsize>::max(), '\n');
 
-            std::cout 
-                << "\nInvalid option. Please enter a number from 0 to 10: ";
+            std::cout << "\nInvalid option. Enter 'y' or 'n': ";
         }
-        
-    return opt;
+
+    if (decision == 'y') {
+        while (*head != nullptr) {
+            delete_album(head, 1);
+        }
+
+        std::cout << "\nData cleared successfully.\n";
+        int option;
+        std::cout << "\nEnter 0 to go back: ";
+        while (!(std::cin >> option) || option != 0) {
+            std::cin.clear();
+            std::cin.ignore(
+                std::numeric_limits<std::streamsize>::max(), '\n');
+
+            std::cout << "Invalid option. Please enter 0: ";
+        }
+    }
 }
