@@ -42,7 +42,7 @@ void add_album(Album** head, Album* new_album);
 
 void handle_print_albums(Album* head);
 void print_album(Album* album);
-int print_albums(Album* head, std::string name = "");
+int print_albums(Album* head, std::string name = "", int search_year = 0);
 
 void handle_clear_data(Album** head);
 void handle_delete_album(Album** head);
@@ -51,6 +51,7 @@ void delete_album(Album** head, int position);
 void handle_search_by_artist(Album* head);
 std::string to_lower (std:: string);
 
+void handle_display_albums_after_specified_year(Album* head);
 
 int main() {
     Album* head = nullptr;
@@ -74,7 +75,7 @@ int main() {
             /* code */
             break;
         case 5:
-            /* code */
+            handle_display_albums_after_specified_year(head);
             break;
         case 6:
             /* code */
@@ -365,7 +366,7 @@ void print_album(Album* album) {
         << '\n';
 }
 
-int print_albums(Album* head, std::string name) {
+int print_albums(Album* head, std::string name, int search_year) {
     int no = 1;
 
     std::cout 
@@ -394,7 +395,17 @@ int print_albums(Album* head, std::string name) {
             std::string search_name = to_lower(name);
 
             while (tmp != nullptr) {
-                if (name.empty() || to_lower(tmp->data.artist) == search_name) {
+                bool should_print;
+
+                if (!name.empty()) {
+                    should_print = to_lower(tmp->data.artist) == search_name;
+                } else if (search_year != 0) {
+                    should_print = tmp->data.year > search_year;
+                } else {
+                    should_print = true;
+                }
+
+                if (should_print) {
                     std::cout << std::setw(5)  << no;    
                     print_album(tmp);
                     ++no;
@@ -555,7 +566,6 @@ void handle_search_by_artist(Album* head) {
 
         std::cout << "Invalid option. Please enter 0: ";
     }
-
 }
 
 std::string to_lower(std::string str) {
@@ -563,4 +573,41 @@ std::string to_lower(std::string str) {
     std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c){ return std::tolower(c); });
 
     return lower;
+}
+
+void handle_display_albums_after_specified_year(Album* head) {
+    if (head == nullptr) {
+        std::cout << "\nNo albums available.\n";
+    } else {
+        int year;
+        int current_year = get_year();
+        std::cout << "\nEnter the year after which to display albums, or 0 to go back: ";
+        while (!(std::cin >> year) || (year != 0 && (year < 1909 || year > current_year))) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout << "Invalid year. Please enter year from 1909 to " 
+                    << current_year 
+                    << ", or 0 to go back: ";
+        }
+        
+        if (year == 0) {
+            return;
+        }
+        int count = print_albums(head, "", year);
+        if (count == 0) {
+            std::cout << "\nNo albums were found after the specified year.\n";
+        }
+    }
+
+    int option;
+    std::cout << "\nEnter 0 to go back: ";
+    while (!(std::cin >> option) || option != 0) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout << "Invalid option. Please enter 0: ";
+    }
 }
