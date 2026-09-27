@@ -66,19 +66,19 @@ int main() {
             handle_add_album(&head);
             break;
         case 2:
-            handle_delete_album(&head);
+            handle_search_by_artist(head);
             break;
         case 3:
-            handle_search_by_artist(head);
+            /* code */
             break;
         case 4:
             /* code */
             break;
         case 5:
-            handle_display_albums_after_specified_year(head);
+            /* code */
             break;
         case 6:
-            /* code */
+            handle_display_albums_after_specified_year(head);
             break;
         case 7:
             /* code */
@@ -87,6 +87,9 @@ int main() {
             handle_print_albums(head);
             break;
         case 9:
+            handle_delete_album(&head);
+            break;
+        case 10:
             handle_clear_data(&head);
             break;
         case 0:
@@ -107,14 +110,15 @@ int menu() {
         << "====================================================\n"
         << "         Music Album Collection Manager\n\n"
         << "1. Add an album\n"
-        << "2. Delete an album\n"
-        << "3. Search for albums by artist\n"
-        << "4. Edit album information\n"
-        << "5. Display albums released after a specified year\n"
-        << "6. Find the longest album in a selected format\n"
-        << "7. Sort albums by duration\n"
+        << "2. Search for albums by artist\n"
+        << "3. Edit all album information\n"
+        << "4. Edit a selected album field\n"
+        << "5. Sort albums by duration\n"
+        << "6. Display albums released after a specified year\n"
+        << "7. Find the longest album in a selected format\n"
         << "8. Display all albums\n"
-        << "9. Clear data\n"
+        << "9. Delete an album\n"
+        << "10. Clear data\n"
         << "0. Exit\n\n"
         << "Select an option (0 - 10): ";
 
