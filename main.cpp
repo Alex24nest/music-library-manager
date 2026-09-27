@@ -42,11 +42,15 @@ void add_album(Album** head, Album* new_album);
 
 void handle_print_albums(Album* head);
 void print_album(Album* album);
-int print_albums(Album* head);
+int print_albums(Album* head, std::string name = "");
 
 void handle_clear_data(Album** head);
 void handle_delete_album(Album** head);
 void delete_album(Album** head, int position);
+
+void handle_search_by_artist(Album* head);
+std::string to_lower (std:: string);
+
 
 int main() {
     Album* head = nullptr;
@@ -64,7 +68,7 @@ int main() {
             handle_delete_album(&head);
             break;
         case 3:
-            /* code */
+            handle_search_by_artist(head);
             break;
         case 4:
             /* code */
@@ -103,8 +107,8 @@ int menu() {
         << "         Music Album Collection Manager\n\n"
         << "1. Add an album\n"
         << "2. Delete an album\n"
-        << "3. Edit album information\n"
-        << "4. Search for albums by artist\n"
+        << "3. Search for albums by artist\n"
+        << "4. Edit album information\n"
         << "5. Display albums released after a specified year\n"
         << "6. Find the longest album in a selected format\n"
         << "7. Sort albums by duration\n"
@@ -361,7 +365,7 @@ void print_album(Album* album) {
         << '\n';
 }
 
-int print_albums(Album* head) {
+int print_albums(Album* head, std::string name) {
     int no = 1;
 
     std::cout 
@@ -386,13 +390,16 @@ int print_albums(Album* head) {
 
             std::cout << std::string(105, '-') << '\n';
             
-            
             Album* tmp = head;
+            std::string search_name = to_lower(name);
+
             while (tmp != nullptr) {
-                std::cout << std::setw(5)  << no;
-                print_album(tmp);
+                if (name.empty() || to_lower(tmp->data.artist) == search_name) {
+                    std::cout << std::setw(5)  << no;    
+                    print_album(tmp);
+                    ++no;
+                }
                 tmp = tmp->next;
-                ++no;
             }
     }
     return no - 1;
@@ -508,4 +515,52 @@ void handle_clear_data(Album** head) {
             std::cout << "Invalid option. Please enter 0: ";
         }
     }
+}
+
+void handle_search_by_artist(Album* head) {
+    if (head == nullptr) {
+        std::cout << "\nNo albums available.\n";
+    } else {
+        std::string artist;
+        std::cout << "\nEnter the artist’s name to search for, or 0 to go back: ";
+        std::getline(std::cin >> std::ws, artist);
+    
+        while (is_blank(artist) || artist.length() > 100) {
+            if (is_blank(artist)) {
+                std::cout << "Name cannot be empty. Enter artist’s name: ";
+            } else {
+                std::cout
+                    << "Name is too long. Enter a name containing up to 100 characters: ";
+            }
+    
+            std::getline(std::cin, artist);
+        }
+        
+        if (artist == "0") {
+            return;
+        }
+        
+        int count = print_albums(head, artist);
+        if (count == 0) {
+            std::cout << "\nNo albums found for this artist.\n";
+        }
+    }
+
+    int option;
+    std::cout << "\nEnter 0 to go back: ";
+    while (!(std::cin >> option) || option != 0) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout << "Invalid option. Please enter 0: ";
+    }
+
+}
+
+std::string to_lower(std::string str) {
+    std::string lower = str;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c){ return std::tolower(c); });
+
+    return lower;
 }
