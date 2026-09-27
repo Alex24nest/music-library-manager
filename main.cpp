@@ -49,10 +49,15 @@ void handle_delete_album(Album** head);
 void delete_album(Album** head, int position);
 
 void handle_search_by_artist(Album* head);
-std::string to_lower (std:: string);
+std::string to_lower (std::string str);
 
 void handle_display_albums_after_specified_year(Album* head);
 void handle_longest_album_by_format(Album* head);
+
+void handle_sorting_by_time(Album** head);
+Album* get_middle(Album* head);
+Album* merge(Album* list1, Album* list2);
+Album* merge_sort(Album* head);
 
 int main() {
     Album* head = nullptr;
@@ -76,7 +81,7 @@ int main() {
             /* code */
             break;
         case 5:
-            /* code */
+            handle_sorting_by_time(&head);
             break;
         case 6:
             handle_display_albums_after_specified_year(head);
@@ -583,7 +588,6 @@ std::string to_lower(std::string str) {
 void handle_display_albums_after_specified_year(Album* head) {
     if (head == nullptr) {
         std::cout << "\nNo albums available.\n";
-        return;
     } else {
         int year;
         int current_year = get_year();
@@ -621,7 +625,6 @@ void handle_display_albums_after_specified_year(Album* head) {
 void handle_longest_album_by_format(Album* head) {
     if (head == nullptr) {
         std::cout << "\nNo albums available.\n";
-        return;
     } else {
         std::cout 
             << "Format:\n"
@@ -679,4 +682,100 @@ void handle_longest_album_by_format(Album* head) {
 
         std::cout << "Invalid option. Please enter 0: ";
     }
+}
+
+void handle_sorting_by_time(Album** head) {
+    char decision = ' ';
+    if (head == nullptr || *head == nullptr) {
+        std::cout << "\nThe album list is empty.\n";
+    } else {
+        std::cout << "\nAre you sure you want to sort the albums? This action will change their order and cannot be undone (y/n): ";
+        while (!(std::cin >> decision) || (decision != 'y' && decision != 'n')) {
+                std::cin.clear();
+                std::cin.ignore(
+                    std::numeric_limits<std::streamsize>::max(), '\n');
+
+                std::cout << "\nInvalid option. Enter 'y' or 'n': ";
+        }
+    
+        if (decision == 'y') {
+            *head = merge_sort(*head);
+            std::cout << "\nAlbums were sorted successfully.\n";
+        }
+        
+    }
+
+    if (decision != 'n') {
+            int option;
+            std::cout << "\nEnter 0 to go back: ";
+            while (!(std::cin >> option) || option != 0) {
+                std::cin.clear();
+                std::cin.ignore(
+                    std::numeric_limits<std::streamsize>::max(), '\n');
+
+                std::cout << "Invalid option. Please enter 0: ";
+            }
+        }
+}
+
+Album* merge_sort(Album* head) {
+    if (head == nullptr || head->next == nullptr) {
+        return head;
+    }
+
+    Album* left = head;
+    Album* right = get_middle(head);
+    Album* tmp = right->next;
+    right->next = nullptr;
+    right = tmp;
+    right->prev = nullptr;
+
+    left = merge_sort(left);
+    right = merge_sort(right);
+
+    return merge(left, right);
+}
+
+Album* get_middle(Album* head) {
+    Album* slow = head;
+    Album* fast = head->next;
+
+    while (fast != nullptr && fast->next != nullptr) {
+        slow = slow->next;
+        fast = fast->next->next;
+    }
+    return slow;
+}
+
+Album* merge(Album* list1, Album* list2) {
+    Album dummy{};
+    Album* tail = &dummy;
+
+    while (list1 != nullptr && list2 != nullptr) {
+        if (list1->data.duration_total_seconds > list2->data.duration_total_seconds) {
+            tail->next = list1;
+            list1->prev = tail;
+            list1 = list1->next;
+        } else {
+            tail->next = list2;
+            list2->prev = tail;
+            list2 = list2->next;
+        }
+        tail = tail->next;
+    }
+    if (list1 != nullptr) {
+        tail->next = list1;
+        list1->prev = tail;
+    }
+    if (list2 != nullptr) {
+        tail->next = list2;
+        list2->prev = tail;
+    }
+
+    Album* result = dummy.next;
+    if (result != nullptr) {
+        result->prev = nullptr;
+    }
+
+    return result;
 }
