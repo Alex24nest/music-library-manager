@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <ctime>
 #include <iomanip>
+#include <algorithm>
+#include <cctype>
+#include <limits>
 
 enum Format {
     CD,
@@ -36,7 +39,7 @@ Album* create_album(const std::string& name,
                     int year, 
                     Format format, 
                     int song_quantity, 
-                    double duration_total_seconds, 
+                    int duration_total_seconds, 
                     const std::string& artist);
 void add_album(Album** head, Album* new_album);
 
@@ -100,6 +103,9 @@ int main() {
             break;
         case 0:
             running = false;
+            while (head != nullptr) {
+                delete_album(&head, 1);
+            }
             break;
         }
     }
@@ -318,7 +324,7 @@ Album* create_album(const std::string& name,
                     int year, 
                     Format format, 
                     int song_quantity, 
-                    double duration_total_seconds, 
+                    int duration_total_seconds, 
                     const std::string& artist) {
         
     Album* newAlbum = new Album{};
@@ -363,15 +369,19 @@ void handle_print_albums(Album* head) {
 }
 
 void print_album(Album* album) {
-    double duration = (album->data.duration_total_seconds / 60) + 
-                      ((album->data.duration_total_seconds % 60) / 100.0);
+    int duration_min = (album->data.duration_total_seconds / 60);
+    int duration_sec = (album->data.duration_total_seconds % 60);
+    
+    std::string duration = std::to_string(duration_min) + ":" +
+                            (duration_sec < 10 ? "0" : "") +
+                            std::to_string(duration_sec);
     std::cout
         << std::left
         << std::setw(30) << album->data.name
         << std::setw(8)  << album->data.year
         << std::setw(15) << format_to_string(album->data.format)
         << std::setw(10) << album->data.song_quantity
-        << std::setw(12) << std::fixed << std::setprecision(2) << duration
+        << std::setw(12) << duration
         << std::setw(25) << album->data.artist
         << '\n';
 }
@@ -735,7 +745,6 @@ Album* merge_sort(Album* head) {
 
     return merge(left, right);
 }
-
 Album* get_middle(Album* head) {
     Album* slow = head;
     Album* fast = head->next;
@@ -746,7 +755,6 @@ Album* get_middle(Album* head) {
     }
     return slow;
 }
-
 Album* merge(Album* list1, Album* list2) {
     Album dummy{};
     Album* tail = &dummy;
@@ -779,3 +787,4 @@ Album* merge(Album* list1, Album* list2) {
 
     return result;
 }
+
