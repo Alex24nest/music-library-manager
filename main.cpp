@@ -52,6 +52,7 @@ void handle_search_by_artist(Album* head);
 std::string to_lower (std:: string);
 
 void handle_display_albums_after_specified_year(Album* head);
+void handle_longest_album_by_format(Album* head);
 
 int main() {
     Album* head = nullptr;
@@ -81,7 +82,7 @@ int main() {
             handle_display_albums_after_specified_year(head);
             break;
         case 7:
-            /* code */
+            handle_longest_album_by_format(head);
             break;
         case 8:
             handle_print_albums(head);
@@ -582,6 +583,7 @@ std::string to_lower(std::string str) {
 void handle_display_albums_after_specified_year(Album* head) {
     if (head == nullptr) {
         std::cout << "\nNo albums available.\n";
+        return;
     } else {
         int year;
         int current_year = get_year();
@@ -608,6 +610,69 @@ void handle_display_albums_after_specified_year(Album* head) {
     int option;
     std::cout << "\nEnter 0 to go back: ";
     while (!(std::cin >> option) || option != 0) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout << "Invalid option. Please enter 0: ";
+    }
+}
+
+void handle_longest_album_by_format(Album* head) {
+    if (head == nullptr) {
+        std::cout << "\nNo albums available.\n";
+        return;
+    } else {
+        std::cout 
+            << "Format:\n"
+            << "1. CD\n"
+            << "2. Vinyl\n"
+            << "3. Cassette\n"
+            << "4. Digital\n"
+            << "5. DVDAudio\n"
+            << "6. Other\n"
+            << "0. Go back\n"
+            << "\nEnter a number from 0 to 6: ";
+        int option;
+        while (!(std::cin >> option) || option < 0 || option > 6) {
+                std::cin.clear();
+                std::cin.ignore(
+                    std::numeric_limits<std::streamsize>::max(), '\n');
+
+                std::cout 
+                    << "\nInvalid option. Please enter a number from 0 to 6: ";
+            }
+        if (option == 0) {
+            return;
+        }
+        Format format = static_cast<Format>(option - 1);
+
+        Album* curr = head;
+        Album* longest = nullptr;
+        int longest_time = -1;
+
+        while (curr != nullptr) {
+            if (curr->data.format == format && 
+                curr->data.duration_total_seconds > longest_time) {
+
+                longest = curr;
+                longest_time = curr->data.duration_total_seconds;
+
+            }
+            curr = curr->next;
+        }
+
+        if (longest == nullptr) {
+            std::cout << "\nNo albums found in the selected format.\n";
+        } else {
+            std::cout << "\nThe longest album in the selected format is:\n";
+            print_album(longest);
+        }
+    }
+
+    int opt;
+    std::cout << "\nEnter 0 to go back: ";
+    while (!(std::cin >> opt) || opt != 0) {
         std::cin.clear();
         std::cin.ignore(
             std::numeric_limits<std::streamsize>::max(), '\n');
