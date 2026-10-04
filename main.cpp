@@ -8,6 +8,7 @@
 #include <limits>
 #include <fstream>
 #include <sstream>
+#include <cstdio>
 
 enum Format {
     CD,
@@ -39,6 +40,7 @@ int get_year();
 std::string format_to_string(Format format);
 bool string_to_format(const std::string& text, Format& format);
 bool parse_duration(const std::string& text, int& total_seconds);
+int read_duration();
 Album* create_album(const std::string& name, 
                     int year, 
                     Format format, 
@@ -48,7 +50,9 @@ Album* create_album(const std::string& name,
 void add_album(Album** head, Album* new_album);
 
 void handle_print_albums(Album* head);
-void print_album(Album* album);
+void print_album(Album* album,
+                 int album_width = 0,
+                 int artist_width = 0);
 int print_albums(Album* head, std::string name = "", int search_year = 0);
 
 void handle_clear_data(Album** head);
@@ -66,8 +70,8 @@ Album* get_middle(Album* head);
 Album* merge(Album* list1, Album* list2);
 Album* merge_sort(Album* head);
 
-void handle_change_album_data(Album** head);
-void handle_change_album_element(Album* head);
+void handle_edit_album_field(Album* head);
+void handle_edit_all_album_data(Album* head);
 
 bool save_albums_to_file(Album* head,
                          const std::string& filename,
@@ -79,20 +83,31 @@ bool load_albums_from_file(Album** head,
 
 bool read_txt_filename(std::string& filename,
                        const std::string& action);
+bool file_exists(const std::string& filename);
+bool confirm_overwrite_if_needed(const std::string& filename);
 void wait_to_go_back();
 
 int main() {
     Album* head = nullptr;
     std::string active_filename = "albums.txt";
     std::string file_error;
+    bool startup_file_exists = file_exists(active_filename);
+    bool automatic_save_allowed = !startup_file_exists;
 
     if (load_albums_from_file(
             &head, active_filename, file_error)) {
+        automatic_save_allowed = true;
         std::cout << "\nAlbum data loaded successfully.\n";
     } else {
         std::cout
             << "\n" << file_error
             << "\nStarting with an empty album list.\n";
+
+        if (!automatic_save_allowed) {
+            std::cout
+                << "Automatic saving is disabled to protect the existing "
+                << "file. Use option 12 to save to a valid file.\n";
+        }
     }
 
     bool running = true;
@@ -109,10 +124,10 @@ int main() {
             handle_search_by_artist(head);
             break;
         case 3:
-            handle_change_album_element(head);
+            handle_edit_all_album_data(head);
             break;
         case 4:
-            handle_change_album_data(&head);
+            handle_edit_album_field(head);
             break;
         case 5:
             handle_sorting_by_time(&head);
@@ -158,6 +173,7 @@ int main() {
                 if (load_albums_from_file(
                         &head, selected_filename, file_error)) {
                     active_filename = selected_filename;
+                    automatic_save_allowed = true;
                     std::cout
                         << "\nAlbum data loaded successfully.\n";
                 } else {
@@ -177,9 +193,16 @@ int main() {
                 break;
             }
 
+            if (!confirm_overwrite_if_needed(selected_filename)) {
+                std::cout << "\nSaving cancelled.\n";
+                wait_to_go_back();
+                break;
+            }
+
             if (save_albums_to_file(
                     head, selected_filename, file_error)) {
                 active_filename = selected_filename;
+                automatic_save_allowed = true;
                 std::cout << "\nAlbum data saved successfully.\n";
             } else {
                 std::cout << "\n" << file_error << '\n';
@@ -188,12 +211,45 @@ int main() {
             wait_to_go_back();
             break;
         }
-        case 0:
-            if (save_albums_to_file(
-                    head, active_filename, file_error)) {
-                std::cout << "\nAlbum data saved successfully.\n";
+        case 0: {
+            bool exit_without_saving = false;
+
+            if (automatic_save_allowed) {
+                if (save_albums_to_file(
+                        head, active_filename, file_error)) {
+                    std::cout << "\nAlbum data saved successfully.\n";
+                } else {
+                    std::cout << "\n" << file_error << '\n';
+                    exit_without_saving = true;
+                }
             } else {
-                std::cout << "\n" << file_error << '\n';
+                std::cout
+                    << "\nAutomatic saving was skipped because the startup "
+                    << "file could not be loaded. The original file was not "
+                    << "changed.\n";
+                exit_without_saving = true;
+            }
+
+            if (exit_without_saving) {
+                char decision;
+
+                std::cout << "Exit without saving (y/n): ";
+
+                while (!(std::cin >> decision) ||
+                       (decision != 'y' && decision != 'n')) {
+                    std::cin.clear();
+                    std::cin.ignore(
+                        std::numeric_limits<std::streamsize>::max(), '\n');
+
+                    std::cout << "Invalid option. Enter 'y' or 'n': ";
+                }
+
+                if (decision == 'n') {
+                    std::cout
+                        << "\nExit cancelled. Use option 12 to save your "
+                        << "data.\n";
+                    break;
+                }
             }
 
             running = false;
@@ -201,6 +257,7 @@ int main() {
                 delete_album(&head, 1);
             }
             break;
+        }
         }
     }
 
@@ -279,6 +336,35 @@ bool read_txt_filename(
 
         std::getline(std::cin, filename);
     }
+}
+
+bool file_exists(const std::string& filename) {
+    std::ifstream file(filename);
+    return file.is_open();
+}
+
+bool confirm_overwrite_if_needed(const std::string& filename) {
+    if (!file_exists(filename)) {
+        return true;
+    }
+
+    char decision;
+
+    std::cout
+        << "\nThe file \"" << filename
+        << "\" already exists. Overwriting it cannot be undone. "
+        << "Continue (y/n): ";
+
+    while (!(std::cin >> decision) ||
+           (decision != 'y' && decision != 'n')) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout << "Invalid option. Enter 'y' or 'n': ";
+    }
+
+    return decision == 'y';
 }
 
 void wait_to_go_back() {
@@ -364,43 +450,7 @@ void handle_add_album(Album** head) {
                 << "\nInvalid option. Please enter a positive number: ";
         }
 
-    int duration_minutes;
-    int duration_seconds;
-    do {
-        std::cout << "Enter duration minutes: ";
-
-        while (!(std::cin >> duration_minutes) ||
-            duration_minutes < 0) {
-            std::cin.clear();
-            std::cin.ignore(
-                std::numeric_limits<std::streamsize>::max(), '\n'
-            );
-
-            std::cout
-                << "Invalid value. Enter non-negative minutes: ";
-        }
-
-        std::cout << "Enter duration seconds (0-59): ";
-
-        while (!(std::cin >> duration_seconds) ||
-            duration_seconds < 0 ||
-            duration_seconds > 59) {
-            std::cin.clear();
-            std::cin.ignore(
-                std::numeric_limits<std::streamsize>::max(), '\n'
-            );
-
-            std::cout << "Invalid value. Enter seconds from 0 to 59: ";
-        }
-
-        duration_total_seconds =
-            duration_minutes * 60 + duration_seconds;
-
-        if (duration_total_seconds == 0) {
-            std::cout
-                << "Album duration must be greater than 0:00.\n";
-        }
-    } while (duration_total_seconds == 0);
+    duration_total_seconds = read_duration();
 
     std::cout << "Enter artist name (maximum 100 characters): ";
     std::getline(std::cin >> std::ws, artist);
@@ -526,6 +576,57 @@ bool parse_duration(const std::string& text, int& total_seconds) {
     return true;
 }
 
+int read_duration() {
+    while (true) {
+        long long duration_minutes;
+        int duration_seconds;
+
+        std::cout << "Enter duration minutes: ";
+
+        while (!(std::cin >> duration_minutes) ||
+               duration_minutes < 0) {
+            std::cin.clear();
+            std::cin.ignore(
+                std::numeric_limits<std::streamsize>::max(), '\n');
+
+            std::cout
+                << "Invalid value. Enter non-negative minutes: ";
+        }
+
+        std::cout << "Enter duration seconds (0-59): ";
+
+        while (!(std::cin >> duration_seconds) ||
+               duration_seconds < 0 ||
+               duration_seconds > 59) {
+            std::cin.clear();
+            std::cin.ignore(
+                std::numeric_limits<std::streamsize>::max(), '\n');
+
+            std::cout << "Invalid value. Enter seconds from 0 to 59: ";
+        }
+
+        const long long maximum = std::numeric_limits<int>::max();
+
+        if (duration_minutes >
+            (maximum - duration_seconds) / 60) {
+            std::cout
+                << "Duration is too large. Please enter a smaller value.\n";
+            continue;
+        }
+
+        long long total_seconds =
+            duration_minutes * 60 + duration_seconds;
+
+        if (total_seconds == 0) {
+            std::cout
+                << "Album duration must be greater than 0:00.\n";
+            continue;
+        }
+
+        return static_cast<int>(total_seconds);
+    }
+}
+
 Album* create_album(const std::string& name, 
                     int year, 
                     Format format, 
@@ -574,7 +675,24 @@ void handle_print_albums(Album* head) {
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 
-void print_album(Album* album) {
+void print_album(Album* album, int album_width, int artist_width) {
+    const int minimum_album_width = 30;
+    const int minimum_artist_width = 25;
+    const int songs_width = 12;
+    const int duration_width = 15;
+
+    if (album_width == 0) {
+        album_width = std::max(
+            minimum_album_width,
+            static_cast<int>(album->data.name.length()) + 2);
+    }
+
+    if (artist_width == 0) {
+        artist_width = std::max(
+            minimum_artist_width,
+            static_cast<int>(album->data.artist.length()) + 2);
+    }
+
     int duration_min = (album->data.duration_total_seconds / 60);
     int duration_sec = (album->data.duration_total_seconds % 60);
     
@@ -583,16 +701,23 @@ void print_album(Album* album) {
                             std::to_string(duration_sec);
     std::cout
         << std::left
-        << std::setw(30) << album->data.name
+        << std::setw(album_width) << album->data.name
         << std::setw(8)  << album->data.year
         << std::setw(15) << format_to_string(album->data.format)
-        << std::setw(10) << album->data.song_quantity
-        << std::setw(12) << duration
-        << std::setw(25) << album->data.artist
+        << std::setw(songs_width) << album->data.song_quantity
+        << std::setw(duration_width) << duration
+        << std::setw(artist_width) << album->data.artist
         << '\n';
 }
 
 int print_albums(Album* head, std::string name, int search_year) {
+    const int number_width = 5;
+    const int minimum_album_width = 30;
+    const int year_width = 8;
+    const int format_width = 15;
+    const int songs_width = 12;
+    const int duration_width = 15;
+    const int minimum_artist_width = 25;
     int no = 1;
 
     std::cout 
@@ -603,42 +728,66 @@ int print_albums(Album* head, std::string name, int search_year) {
     if (head == nullptr) {
         std::cout << "The album list is empty.\n";
         return 0;
-    } else {
-        std::cout
-                << std::left
-                << std::setw(5)  << "No."
-                << std::setw(30) << "Album"
-                << std::setw(8)  << "Year"
-                << std::setw(15) << "Format"
-                << std::setw(10) << "Songs"
-                << std::setw(12) << "Duration"
-                << std::setw(25) << "Artist"
-                << '\n';
-
-            std::cout << std::string(105, '-') << '\n';
-            
-            Album* tmp = head;
-            std::string search_name = to_lower(name);
-
-            while (tmp != nullptr) {
-                bool should_print;
-
-                if (!name.empty()) {
-                    should_print = to_lower(tmp->data.artist) == search_name;
-                } else if (search_year != 0) {
-                    should_print = tmp->data.year > search_year;
-                } else {
-                    should_print = true;
-                }
-
-                if (should_print) {
-                    std::cout << std::setw(5)  << no;    
-                    print_album(tmp);
-                    ++no;
-                }
-                tmp = tmp->next;
-            }
     }
+
+    std::string search_name = to_lower(name);
+    auto should_print = [&](Album* album) {
+        if (!name.empty()) {
+            return to_lower(album->data.artist) == search_name;
+        }
+
+        if (search_year != 0) {
+            return album->data.year > search_year;
+        }
+
+        return true;
+    };
+
+    int album_width = minimum_album_width;
+    int artist_width = minimum_artist_width;
+
+    for (Album* current = head;
+         current != nullptr;
+         current = current->next) {
+        if (should_print(current)) {
+            album_width = std::max(
+                album_width,
+                static_cast<int>(current->data.name.length()) + 2);
+            artist_width = std::max(
+                artist_width,
+                static_cast<int>(current->data.artist.length()) + 2);
+        }
+    }
+
+    std::cout
+        << std::left
+        << std::setw(number_width) << "No."
+        << std::setw(album_width) << "Album"
+        << std::setw(year_width) << "Year"
+        << std::setw(format_width) << "Format"
+        << std::setw(songs_width) << "Songs"
+        << std::setw(duration_width) << "Duration"
+        << std::setw(artist_width) << "Artist"
+        << '\n';
+
+    int table_width =
+        number_width + album_width + year_width + format_width +
+        songs_width + duration_width + artist_width;
+
+    std::cout
+        << std::string(static_cast<std::size_t>(table_width), '-')
+        << '\n';
+
+    for (Album* current = head;
+         current != nullptr;
+         current = current->next) {
+        if (should_print(current)) {
+            std::cout << std::setw(number_width) << no;
+            print_album(current, album_width, artist_width);
+            ++no;
+        }
+    }
+
     return no - 1;
 }
 
@@ -994,13 +1143,13 @@ Album* merge(Album* list1, Album* list2) {
     return result;
 }
 
-void handle_change_album_data(Album** head) {
-    if (head == nullptr || *head == nullptr) {
+void handle_edit_album_field(Album* head) {
+    if (head == nullptr) {
         std::cout << "\nThe album list is empty.\n";
         return;
     }
 
-    int count = print_albums(*head);
+    int count = print_albums(head);
     int position;
 
     std::cout << "\nEnter the album position to edit, or 0 to go back: ";
@@ -1019,7 +1168,7 @@ void handle_change_album_data(Album** head) {
         return;
     }
 
-    Album* album = *head;
+    Album* album = head;
 
     for (int i = 1; i < position; ++i) {
         album = album->next;
@@ -1147,46 +1296,7 @@ void handle_change_album_data(Album** head) {
         }
 
         case 5: {
-            int duration_minutes;
-            int duration_seconds;
-            int total_seconds;
-
-            do {
-                std::cout << "Enter duration minutes: ";
-
-                while (!(std::cin >> duration_minutes) ||
-                       duration_minutes < 0) {
-                    std::cin.clear();
-                    std::cin.ignore(
-                        std::numeric_limits<std::streamsize>::max(), '\n');
-
-                    std::cout
-                        << "Invalid value. Enter non-negative minutes: ";
-                }
-
-                std::cout << "Enter duration seconds (0-59): ";
-
-                while (!(std::cin >> duration_seconds) ||
-                       duration_seconds < 0 ||
-                       duration_seconds > 59) {
-                    std::cin.clear();
-                    std::cin.ignore(
-                        std::numeric_limits<std::streamsize>::max(), '\n');
-
-                    std::cout
-                        << "Invalid value. Enter seconds from 0 to 59: ";
-                }
-
-                total_seconds =
-                    duration_minutes * 60 + duration_seconds;
-
-                if (total_seconds == 0) {
-                    std::cout
-                        << "Album duration must be greater than 0:00.\n";
-                }
-            } while (total_seconds == 0);
-
-            updated_data.duration_total_seconds = total_seconds;
+            updated_data.duration_total_seconds = read_duration();
             break;
         }
 
@@ -1253,7 +1363,7 @@ void handle_change_album_data(Album** head) {
     }
 }
 
-void handle_change_album_element(Album* head) {
+void handle_edit_all_album_data(Album* head) {
     if (head == nullptr) {
         std::cout << "\nThe album list is empty.\n";
         return;
@@ -1359,43 +1469,7 @@ void handle_change_album_element(Album* head) {
             << "Invalid value. Enter a positive number: ";
     }
 
-    int duration_minutes;
-    int duration_seconds;
-
-    do {
-        std::cout << "Enter duration minutes: ";
-
-        while (!(std::cin >> duration_minutes) ||
-               duration_minutes < 0) {
-            std::cin.clear();
-            std::cin.ignore(
-                std::numeric_limits<std::streamsize>::max(), '\n');
-
-            std::cout
-                << "Invalid value. Enter non-negative minutes: ";
-        }
-
-        std::cout << "Enter duration seconds (0-59): ";
-
-        while (!(std::cin >> duration_seconds) ||
-               duration_seconds < 0 ||
-               duration_seconds > 59) {
-            std::cin.clear();
-            std::cin.ignore(
-                std::numeric_limits<std::streamsize>::max(), '\n');
-
-            std::cout
-                << "Invalid value. Enter seconds from 0 to 59: ";
-        }
-
-        updated_data.duration_total_seconds =
-            duration_minutes * 60 + duration_seconds;
-
-        if (updated_data.duration_total_seconds == 0) {
-            std::cout
-                << "Album duration must be greater than 0:00.\n";
-        }
-    } while (updated_data.duration_total_seconds == 0);
+    updated_data.duration_total_seconds = read_duration();
 
     std::cout << "Enter the new artist name: ";
     std::getline(std::cin >> std::ws, updated_data.artist);
@@ -1457,10 +1531,14 @@ bool save_albums_to_file(
     const std::string& filename,
     std::string& error) {
 
-    std::ofstream file(filename);
+    const std::string temporary_filename = filename + ".tmp";
+    std::ofstream file(
+        temporary_filename,
+        std::ios::out | std::ios::trunc);
 
     if (!file.is_open()) {
-        error = "Could not open \"" + filename + "\" for writing.";
+        error = "Could not create a temporary file for saving \"" +
+                filename + "\".";
         return false;
     }
 
@@ -1487,6 +1565,8 @@ bool save_albums_to_file(
             << std::quoted(current->data.artist) << '\n';
 
         if (!file) {
+            file.close();
+            std::remove(temporary_filename.c_str());
             error = "An error occurred while writing to \"" +
                     filename + "\".";
             return false;
@@ -1498,7 +1578,17 @@ bool save_albums_to_file(
     file.close();
 
     if (!file) {
+        std::remove(temporary_filename.c_str());
         error = "Could not finish writing to \"" + filename + "\".";
+        return false;
+    }
+
+    if (std::rename(
+            temporary_filename.c_str(),
+            filename.c_str()) != 0) {
+        std::remove(temporary_filename.c_str());
+        error = "Could not replace \"" + filename +
+                "\" with the saved data.";
         return false;
     }
 
