@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cctype>
 #include <limits>
+#include <fstream>
+#include <sstream>
 
 enum Format {
     CD,
@@ -35,6 +37,8 @@ void handle_add_album(Album** head);
 bool is_blank(const std::string& text);
 int get_year();
 std::string format_to_string(Format format);
+bool string_to_format(const std::string& text, Format& format);
+bool parse_duration(const std::string& text, int& total_seconds);
 Album* create_album(const std::string& name, 
                     int year, 
                     Format format, 
@@ -65,8 +69,32 @@ Album* merge_sort(Album* head);
 void handle_change_album_data(Album** head);
 void handle_change_album_element(Album* head);
 
+bool save_albums_to_file(Album* head,
+                         const std::string& filename,
+                         std::string& error);
+
+bool load_albums_from_file(Album** head,
+                           const std::string& filename,
+                           std::string& error);
+
+bool read_txt_filename(std::string& filename,
+                       const std::string& action);
+void wait_to_go_back();
+
 int main() {
     Album* head = nullptr;
+    std::string active_filename = "albums.txt";
+    std::string file_error;
+
+    if (load_albums_from_file(
+            &head, active_filename, file_error)) {
+        std::cout << "\nAlbum data loaded successfully.\n";
+    } else {
+        std::cout
+            << "\n" << file_error
+            << "\nStarting with an empty album list.\n";
+    }
+
     bool running = true;
 
     while (running) {
@@ -104,7 +132,70 @@ int main() {
         case 10:
             handle_clear_data(&head);
             break;
+        case 11: {
+            std::string selected_filename;
+
+            if (!read_txt_filename(selected_filename, "load")) {
+                break;
+            }
+
+            char decision;
+
+            std::cout
+                << "\nLoading data will replace the current album list. "
+                << "Continue (y/n): ";
+
+            while (!(std::cin >> decision) ||
+                   (decision != 'y' && decision != 'n')) {
+                std::cin.clear();
+                std::cin.ignore(
+                    std::numeric_limits<std::streamsize>::max(), '\n');
+
+                std::cout << "Invalid option. Enter 'y' or 'n': ";
+            }
+
+            if (decision == 'y') {
+                if (load_albums_from_file(
+                        &head, selected_filename, file_error)) {
+                    active_filename = selected_filename;
+                    std::cout
+                        << "\nAlbum data loaded successfully.\n";
+                } else {
+                    std::cout << "\n" << file_error << '\n';
+                }
+            } else {
+                std::cout << "\nLoading cancelled.\n";
+            }
+
+            wait_to_go_back();
+            break;
+        }
+        case 12: {
+            std::string selected_filename;
+
+            if (!read_txt_filename(selected_filename, "save")) {
+                break;
+            }
+
+            if (save_albums_to_file(
+                    head, selected_filename, file_error)) {
+                active_filename = selected_filename;
+                std::cout << "\nAlbum data saved successfully.\n";
+            } else {
+                std::cout << "\n" << file_error << '\n';
+            }
+
+            wait_to_go_back();
+            break;
+        }
         case 0:
+            if (save_albums_to_file(
+                    head, active_filename, file_error)) {
+                std::cout << "\nAlbum data saved successfully.\n";
+            } else {
+                std::cout << "\n" << file_error << '\n';
+            }
+
             running = false;
             while (head != nullptr) {
                 delete_album(&head, 1);
@@ -134,20 +225,74 @@ int menu() {
         << "8. Display all albums\n"
         << "9. Delete an album\n"
         << "10. Clear data\n"
+        << "11. Load data from file\n"
+        << "12. Save data to file\n"
         << "0. Exit\n\n"
-        << "Select an option (0 - 10): ";
+        << "Select an option (0 - 12): ";
 
-        while (!(std::cin >> opt) || opt < 0 || opt > 10) {
+        while (!(std::cin >> opt) || opt < 0 || opt > 12) {
             std::cin.clear();
             std::cin.ignore(
                 std::numeric_limits<std::streamsize>::max(), '\n'
             );
 
             std::cout 
-                << "\nInvalid option. Please enter a number from 0 to 10: ";
+                << "\nInvalid option. Please enter a number from 0 to 12: ";
         }
         
     return opt;
+}
+
+bool read_txt_filename(
+    std::string& filename,
+    const std::string& action) {
+
+    std::cout
+        << "\nEnter the TXT file name to " << action
+        << " (for example, albums.txt), or 0 to go back: ";
+
+    std::getline(std::cin >> std::ws, filename);
+
+    while (true) {
+        if (filename == "0") {
+            return false;
+        }
+
+        bool valid_extension =
+            filename.length() > 4 &&
+            to_lower(filename.substr(filename.length() - 4)) == ".txt";
+
+        bool valid_name =
+            !is_blank(filename) &&
+            filename.length() <= 100 &&
+            filename.find('/') == std::string::npos &&
+            filename.find('\\') == std::string::npos &&
+            valid_extension;
+
+        if (valid_name) {
+            return true;
+        }
+
+        std::cout
+            << "Invalid file name. Enter a simple .txt file name "
+            << "or 0 to go back: ";
+
+        std::getline(std::cin, filename);
+    }
+}
+
+void wait_to_go_back() {
+    int option;
+
+    std::cout << "\nEnter 0 to go back: ";
+
+    while (!(std::cin >> option) || option != 0) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout << "Invalid option. Please enter 0: ";
+    }
 }
 
 void handle_add_album(Album** head) {
@@ -321,6 +466,64 @@ std::string format_to_string(Format format) {
         case DVDAudio: return "DVD-Audio";
         case Other:    return "Other";
     }
+
+    return "Unknown";
+}
+
+bool string_to_format(const std::string& text, Format& format) {
+    if (text == "CD") {
+        format = CD;
+    } else if (text == "Vinyl") {
+        format = Vinyl;
+    } else if (text == "Cassette") {
+        format = Cassette;
+    } else if (text == "Digital") {
+        format = Digital;
+    } else if (text == "DVD-Audio") {
+        format = DVDAudio;
+    } else if (text == "Other") {
+        format = Other;
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+bool parse_duration(const std::string& text, int& total_seconds) {
+    std::istringstream input(text);
+    long long minutes;
+    int seconds;
+    char separator;
+
+    if (!(input >> minutes >> separator >> seconds) ||
+        separator != ':' ||
+        minutes < 0 ||
+        seconds < 0 ||
+        seconds > 59) {
+        return false;
+    }
+
+    input >> std::ws;
+
+    if (!input.eof()) {
+        return false;
+    }
+
+    const long long maximum = std::numeric_limits<int>::max();
+
+    if (minutes > (maximum - seconds) / 60) {
+        return false;
+    }
+
+    long long duration = minutes * 60 + seconds;
+
+    if (duration == 0) {
+        return false;
+    }
+
+    total_seconds = static_cast<int>(duration);
+    return true;
 }
 
 Album* create_album(const std::string& name, 
@@ -1247,4 +1450,196 @@ void handle_change_album_element(Album* head) {
 
         std::cout << "Invalid option. Please enter 0: ";
     }
+}
+
+bool save_albums_to_file(
+    Album* head,
+    const std::string& filename,
+    std::string& error) {
+
+    std::ofstream file(filename);
+
+    if (!file.is_open()) {
+        error = "Could not open \"" + filename + "\" for writing.";
+        return false;
+    }
+
+    file << "Album Year Format Songs Duration Artist\n";
+
+    Album* current = head;
+
+    while (current != nullptr) {
+        int duration_minutes =
+            current->data.duration_total_seconds / 60;
+        int duration_seconds =
+            current->data.duration_total_seconds % 60;
+        std::string duration =
+            std::to_string(duration_minutes) + ":" +
+            (duration_seconds < 10 ? "0" : "") +
+            std::to_string(duration_seconds);
+
+        file
+            << std::quoted(current->data.name) << ' '
+            << current->data.year << ' '
+            << format_to_string(current->data.format) << ' '
+            << current->data.song_quantity << ' '
+            << duration << ' '
+            << std::quoted(current->data.artist) << '\n';
+
+        if (!file) {
+            error = "An error occurred while writing to \"" +
+                    filename + "\".";
+            return false;
+        }
+
+        current = current->next;
+    }
+
+    file.close();
+
+    if (!file) {
+        error = "Could not finish writing to \"" + filename + "\".";
+        return false;
+    }
+
+    error.clear();
+    return true;
+}
+
+bool load_albums_from_file(
+    Album** head,
+    const std::string& filename,
+    std::string& error) {
+
+    if (head == nullptr) {
+        error = "Invalid list pointer.";
+        return false;
+    }
+
+    std::ifstream file(filename);
+
+    if (!file.is_open()) {
+        error = "The data file \"" + filename +
+                "\" does not exist or cannot be opened.";
+        return false;
+    }
+
+    std::string header;
+
+    if (!std::getline(file, header) ||
+        header != "Album Year Format Songs Duration Artist") {
+        error = "The data file has an invalid header.";
+        return false;
+    }
+
+    Album* loaded_head = nullptr;
+    Album* loaded_tail = nullptr;
+
+    std::string line;
+    int line_number = 1;
+    const int current_year = get_year();
+
+    while (std::getline(file, line)) {
+        ++line_number;
+
+        if (is_blank(line)) {
+            continue;
+        }
+
+        std::istringstream input(line);
+
+        std::string name;
+        std::string artist;
+        std::string format_text;
+        std::string duration_text;
+        int year;
+        int song_quantity;
+        int duration_total_seconds = 0;
+        Format format = Other;
+
+        bool valid = static_cast<bool>(
+            input
+            >> std::quoted(name)
+            >> year
+            >> format_text
+            >> song_quantity
+            >> duration_text
+            >> std::quoted(artist));
+
+        if (valid) {
+            valid =
+                string_to_format(format_text, format) &&
+                parse_duration(
+                    duration_text, duration_total_seconds);
+        }
+
+        if (valid) {
+            input >> std::ws;
+
+            if (!input.eof()) {
+                valid = false;
+            }
+        }
+
+        if (valid) {
+            valid =
+                !is_blank(name) &&
+                name.length() <= 100 &&
+                year >= 1909 &&
+                year <= current_year &&
+                song_quantity > 0 &&
+                duration_total_seconds > 0 &&
+                !is_blank(artist) &&
+                artist.length() <= 100;
+        }
+
+        if (!valid) {
+            while (loaded_head != nullptr) {
+                delete_album(&loaded_head, 1);
+            }
+
+            error =
+                "Malformed album data on line " +
+                std::to_string(line_number) + ".";
+
+            return false;
+        }
+
+        Album* album = create_album(
+            name,
+            year,
+            format,
+            song_quantity,
+            duration_total_seconds,
+            artist);
+
+        if (loaded_head == nullptr) {
+            loaded_head = album;
+            loaded_tail = album;
+        } else {
+            loaded_tail->next = album;
+            album->prev = loaded_tail;
+            loaded_tail = album;
+        }
+    }
+
+    if (file.bad()) {
+        while (loaded_head != nullptr) {
+            delete_album(&loaded_head, 1);
+        }
+
+        error = "An error occurred while reading \"" +
+                filename + "\".";
+
+        return false;
+    }
+
+    while (*head != nullptr) {
+        delete_album(head, 1);
+    }
+
+    *head = loaded_head;
+
+    error.clear();
+    return true;
 }
