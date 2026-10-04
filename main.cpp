@@ -62,6 +62,9 @@ Album* get_middle(Album* head);
 Album* merge(Album* list1, Album* list2);
 Album* merge_sort(Album* head);
 
+void handle_change_album_data(Album** head);
+void handle_change_album_element(Album* head);
+
 int main() {
     Album* head = nullptr;
     bool running = true;
@@ -78,10 +81,10 @@ int main() {
             handle_search_by_artist(head);
             break;
         case 3:
-            /* code */
+            handle_change_album_element(head);
             break;
         case 4:
-            /* code */
+            handle_change_album_data(&head);
             break;
         case 5:
             handle_sorting_by_time(&head);
@@ -788,3 +791,460 @@ Album* merge(Album* list1, Album* list2) {
     return result;
 }
 
+void handle_change_album_data(Album** head) {
+    if (head == nullptr || *head == nullptr) {
+        std::cout << "\nThe album list is empty.\n";
+        return;
+    }
+
+    int count = print_albums(*head);
+    int position;
+
+    std::cout << "\nEnter the album position to edit, or 0 to go back: ";
+
+    while (!(std::cin >> position) || position < 0 || position > count) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout
+            << "Invalid option. Enter a number between 0 and "
+            << count << ": ";
+    }
+
+    if (position == 0) {
+        return;
+    }
+
+    Album* album = *head;
+
+    for (int i = 1; i < position; ++i) {
+        album = album->next;
+    }
+
+    int field;
+
+    std::cout
+        << "\nSelect the field you want to change:\n"
+        << "1. Name\n"
+        << "2. Year\n"
+        << "3. Format\n"
+        << "4. Song quantity\n"
+        << "5. Duration\n"
+        << "6. Artist\n"
+        << "0. Go back\n"
+        << "Enter a number from 0 to 6: ";
+
+    while (!(std::cin >> field) || field < 0 || field > 6) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout
+            << "Invalid option. Enter a number from 0 to 6: ";
+    }
+
+    if (field == 0) {
+        return;
+    }
+
+    Data updated_data = album->data;
+
+    switch (field) {
+        case 1: {
+            std::string name;
+
+            std::cout << "Enter the new album name: ";
+            std::getline(std::cin >> std::ws, name);
+
+            while (is_blank(name) || name.length() > 100) {
+                if (is_blank(name)) {
+                    std::cout
+                        << "Name cannot be empty. Enter album name: ";
+                } else {
+                    std::cout
+                        << "Name is too long. Enter up to 100 characters: ";
+                }
+
+                std::getline(std::cin, name);
+            }
+
+            updated_data.name = name;
+            break;
+        }
+
+        case 2: {
+            int year;
+            int current_year = get_year();
+
+            std::cout << "Enter the new year: ";
+
+            while (!(std::cin >> year) ||
+                   year < 1909 ||
+                   year > current_year) {
+                std::cin.clear();
+                std::cin.ignore(
+                    std::numeric_limits<std::streamsize>::max(), '\n');
+
+                std::cout
+                    << "Invalid year. Enter a year from 1909 to "
+                    << current_year << ": ";
+            }
+
+            updated_data.year = year;
+            break;
+        }
+
+        case 3: {
+            int format_option;
+
+            std::cout
+                << "Select the new format:\n"
+                << "1. CD\n"
+                << "2. Vinyl\n"
+                << "3. Cassette\n"
+                << "4. Digital\n"
+                << "5. DVD-Audio\n"
+                << "6. Other\n"
+                << "Enter a number from 1 to 6: ";
+
+            while (!(std::cin >> format_option) ||
+                   format_option < 1 ||
+                   format_option > 6) {
+                std::cin.clear();
+                std::cin.ignore(
+                    std::numeric_limits<std::streamsize>::max(), '\n');
+
+                std::cout
+                    << "Invalid option. Enter a number from 1 to 6: ";
+            }
+
+            updated_data.format =
+                static_cast<Format>(format_option - 1);
+            break;
+        }
+
+        case 4: {
+            int song_quantity;
+
+            std::cout << "Enter the new song quantity: ";
+
+            while (!(std::cin >> song_quantity) ||
+                   song_quantity < 1) {
+                std::cin.clear();
+                std::cin.ignore(
+                    std::numeric_limits<std::streamsize>::max(), '\n');
+
+                std::cout
+                    << "Invalid value. Enter a positive number: ";
+            }
+
+            updated_data.song_quantity = song_quantity;
+            break;
+        }
+
+        case 5: {
+            int duration_minutes;
+            int duration_seconds;
+            int total_seconds;
+
+            do {
+                std::cout << "Enter duration minutes: ";
+
+                while (!(std::cin >> duration_minutes) ||
+                       duration_minutes < 0) {
+                    std::cin.clear();
+                    std::cin.ignore(
+                        std::numeric_limits<std::streamsize>::max(), '\n');
+
+                    std::cout
+                        << "Invalid value. Enter non-negative minutes: ";
+                }
+
+                std::cout << "Enter duration seconds (0-59): ";
+
+                while (!(std::cin >> duration_seconds) ||
+                       duration_seconds < 0 ||
+                       duration_seconds > 59) {
+                    std::cin.clear();
+                    std::cin.ignore(
+                        std::numeric_limits<std::streamsize>::max(), '\n');
+
+                    std::cout
+                        << "Invalid value. Enter seconds from 0 to 59: ";
+                }
+
+                total_seconds =
+                    duration_minutes * 60 + duration_seconds;
+
+                if (total_seconds == 0) {
+                    std::cout
+                        << "Album duration must be greater than 0:00.\n";
+                }
+            } while (total_seconds == 0);
+
+            updated_data.duration_total_seconds = total_seconds;
+            break;
+        }
+
+        case 6: {
+            std::string artist;
+
+            std::cout << "Enter the new artist name: ";
+            std::getline(std::cin >> std::ws, artist);
+
+            while (is_blank(artist) || artist.length() > 100) {
+                if (is_blank(artist)) {
+                    std::cout
+                        << "Artist name cannot be empty. "
+                        << "Enter artist name: ";
+                } else {
+                    std::cout
+                        << "Artist name is too long. "
+                        << "Enter up to 100 characters: ";
+                }
+
+                std::getline(std::cin, artist);
+            }
+
+            updated_data.artist = artist;
+            break;
+        }
+    }
+
+    Album preview{nullptr, updated_data, nullptr};
+
+    std::cout << "\nUpdated album information:\n";
+    print_album(&preview);
+
+    char decision;
+
+    std::cout << "\nSave these changes (y/n): ";
+
+    while (!(std::cin >> decision) ||
+           (decision != 'y' && decision != 'n')) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout << "Invalid option. Enter 'y' or 'n': ";
+    }
+
+    if (decision == 'y') {
+        album->data = updated_data;
+        std::cout << "\nAlbum information updated successfully.\n";
+    } else {
+        std::cout << "\nChanges were not saved.\n";
+    }
+
+    int option;
+
+    std::cout << "\nEnter 0 to go back: ";
+
+    while (!(std::cin >> option) || option != 0) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout << "Invalid option. Please enter 0: ";
+    }
+}
+
+void handle_change_album_element(Album* head) {
+    if (head == nullptr) {
+        std::cout << "\nThe album list is empty.\n";
+        return;
+    }
+
+    int count = print_albums(head);
+    int position;
+
+    std::cout
+        << "\nEnter the album position to change, or 0 to go back: ";
+
+    while (!(std::cin >> position) ||
+           position < 0 ||
+           position > count) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout
+            << "Invalid option. Enter a number between 0 and "
+            << count << ": ";
+    }
+
+    if (position == 0) {
+        return;
+    }
+
+    Album* album = head;
+
+    for (int i = 1; i < position; ++i) {
+        album = album->next;
+    }
+
+    Data updated_data;
+
+    std::cout << "\nEnter the new album name: ";
+    std::getline(std::cin >> std::ws, updated_data.name);
+
+    while (is_blank(updated_data.name) ||
+           updated_data.name.length() > 100) {
+        if (is_blank(updated_data.name)) {
+            std::cout
+                << "Name cannot be empty. Enter album name: ";
+        } else {
+            std::cout
+                << "Name is too long. Enter up to 100 characters: ";
+        }
+
+        std::getline(std::cin, updated_data.name);
+    }
+
+    int current_year = get_year();
+
+    std::cout << "Enter the new year: ";
+
+    while (!(std::cin >> updated_data.year) ||
+           updated_data.year < 1909 ||
+           updated_data.year > current_year) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout
+            << "Invalid year. Enter a year from 1909 to "
+            << current_year << ": ";
+    }
+
+    int format_option;
+
+    std::cout
+        << "Select the new format:\n"
+        << "1. CD\n"
+        << "2. Vinyl\n"
+        << "3. Cassette\n"
+        << "4. Digital\n"
+        << "5. DVD-Audio\n"
+        << "6. Other\n"
+        << "Enter a number from 1 to 6: ";
+
+    while (!(std::cin >> format_option) ||
+           format_option < 1 ||
+           format_option > 6) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout
+            << "Invalid option. Enter a number from 1 to 6: ";
+    }
+
+    updated_data.format =
+        static_cast<Format>(format_option - 1);
+
+    std::cout << "Enter the new song quantity: ";
+
+    while (!(std::cin >> updated_data.song_quantity) ||
+           updated_data.song_quantity < 1) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout
+            << "Invalid value. Enter a positive number: ";
+    }
+
+    int duration_minutes;
+    int duration_seconds;
+
+    do {
+        std::cout << "Enter duration minutes: ";
+
+        while (!(std::cin >> duration_minutes) ||
+               duration_minutes < 0) {
+            std::cin.clear();
+            std::cin.ignore(
+                std::numeric_limits<std::streamsize>::max(), '\n');
+
+            std::cout
+                << "Invalid value. Enter non-negative minutes: ";
+        }
+
+        std::cout << "Enter duration seconds (0-59): ";
+
+        while (!(std::cin >> duration_seconds) ||
+               duration_seconds < 0 ||
+               duration_seconds > 59) {
+            std::cin.clear();
+            std::cin.ignore(
+                std::numeric_limits<std::streamsize>::max(), '\n');
+
+            std::cout
+                << "Invalid value. Enter seconds from 0 to 59: ";
+        }
+
+        updated_data.duration_total_seconds =
+            duration_minutes * 60 + duration_seconds;
+
+        if (updated_data.duration_total_seconds == 0) {
+            std::cout
+                << "Album duration must be greater than 0:00.\n";
+        }
+    } while (updated_data.duration_total_seconds == 0);
+
+    std::cout << "Enter the new artist name: ";
+    std::getline(std::cin >> std::ws, updated_data.artist);
+
+    while (is_blank(updated_data.artist) ||
+           updated_data.artist.length() > 100) {
+        if (is_blank(updated_data.artist)) {
+            std::cout
+                << "Artist name cannot be empty. Enter artist name: ";
+        } else {
+            std::cout
+                << "Artist name is too long. "
+                << "Enter up to 100 characters: ";
+        }
+
+        std::getline(std::cin, updated_data.artist);
+    }
+
+    Album preview{nullptr, updated_data, nullptr};
+
+    std::cout << "\nNew album information:\n";
+    print_album(&preview);
+
+    char decision;
+
+    std::cout << "\nSave these changes (y/n): ";
+
+    while (!(std::cin >> decision) ||
+           (decision != 'y' && decision != 'n')) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout << "Invalid option. Enter 'y' or 'n': ";
+    }
+
+    if (decision == 'y') {
+        album->data = updated_data;
+        std::cout << "\nAlbum information updated successfully.\n";
+    } else {
+        std::cout << "\nChanges were not saved.\n";
+    }
+
+    int option;
+
+    std::cout << "\nEnter 0 to go back: ";
+
+    while (!(std::cin >> option) || option != 0) {
+        std::cin.clear();
+        std::cin.ignore(
+            std::numeric_limits<std::streamsize>::max(), '\n');
+
+        std::cout << "Invalid option. Please enter 0: ";
+    }
+}
