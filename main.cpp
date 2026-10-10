@@ -212,28 +212,12 @@ int main() {
             break;
         }
         case 0: {
-            bool exit_without_saving = false;
-
-            if (automatic_save_allowed) {
-                if (save_albums_to_file(
-                        head, active_filename, file_error)) {
-                    std::cout << "\nAlbum data saved successfully.\n";
-                } else {
-                    std::cout << "\n" << file_error << '\n';
-                    exit_without_saving = true;
-                }
-            } else {
-                std::cout
-                    << "\nAutomatic saving was skipped because the startup "
-                    << "file could not be loaded. The original file was not "
-                    << "changed.\n";
-                exit_without_saving = true;
-            }
-
-            if (exit_without_saving) {
+            if (head != nullptr) {
                 char decision;
 
-                std::cout << "Exit without saving (y/n): ";
+                std::cout
+                    << "\nSave album data to the default file "
+                    << "\"albums.txt\" before exiting (y/n): ";
 
                 while (!(std::cin >> decision) ||
                        (decision != 'y' && decision != 'n')) {
@@ -244,11 +228,15 @@ int main() {
                     std::cout << "Invalid option. Enter 'y' or 'n': ";
                 }
 
-                if (decision == 'n') {
-                    std::cout
-                        << "\nExit cancelled. Use option 12 to save your "
-                        << "data.\n";
-                    break;
+                if (decision == 'y') {
+                    if (save_albums_to_file(
+                            head, "albums.txt", file_error)) {
+                        std::cout
+                            << "\nAlbum data saved successfully.\n";
+                    } else {
+                        std::cout << "\n" << file_error << '\n';
+                        break;
+                    }
                 }
             }
 
